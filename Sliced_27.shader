@@ -1,4 +1,8 @@
-﻿Shader "Game/27-Sliced"
+﻿The shader works something like 9-slice sprites but for 3d meshes. 
+ The shader automatically handles the scales of the objects and 
+ stretches the center of the mesh to make edges of the mesh even size
+ 
+ Shader "Game/27-Sliced"
 {
     Properties
     {
