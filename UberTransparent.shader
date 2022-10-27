@@ -1,4 +1,4 @@
-﻿Shader "Game/Uber Transparent"
+Shader "Game/Uber Transparent"
 {
     Properties
     {
@@ -18,6 +18,9 @@
         _Z_Test ("Z Test", FLOAT) = 2
         [Toggle(CUTOUT_ON)]_Cutout ("Cut Out", FLOAT) = 0
         _CutThr ("Alpha Threshold", FLOAT) = 0.5
+        [Space]
+        _OffsetFactor ("Offset Factor", Range(-1,1)) = 0
+        _OffsetUnits ("Offset Units", Range(-1,1)) = 0
     }
     SubShader
     {
@@ -27,6 +30,7 @@
         ZWrite [_ZWrite]
         Blend [_BlendSrc] [_BlendDst]
         ZTest [_Z_Test]
+        Offset [_OffsetFactor], [_OffsetUnits]
 
         Pass
         {
@@ -98,6 +102,26 @@
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 tex = tex2D(_MainTex,i.uv);
+                #ifdef CUTOUT_ON
+                clip(tex.a - _CutThr);
+                #endif
+                tex.a *= _AlphaScale;
+                half facing = abs(dot(normalize(i.normal),normalize(i.viewVec)));
+                fixed4 col = 
+                    tex * 
+                    lerp(
+                        _ColorFresnel,
+                        _Color,
+                        saturate(pow(abs(facing),_Fresnel))
+                    ) * i.color;
+                UNITY_APPLY_FOG(i.fogCoord, col);
+                return col;
+            }
+            ENDCG
+        }
+    }
+}
+tex = tex2D(_MainTex,i.uv);
                 #ifdef CUTOUT_ON
                 clip(tex.a - _CutThr);
                 #endif
