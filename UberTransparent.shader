@@ -4,8 +4,11 @@ Shader "Game/Uber Transparent"
     {
         [Hdr]_Color ("Color", COLOR) = (1,1,1,1)
         _AlphaScale ("Alpha Scale", FLOAT) = 1
+        [Space]
+        [Toggle(ENABLE_FRESNEL)]_EnableFresnel ("Enable Fresnel", FLOAT) = 0
         [Hdr]_ColorFresnel ("Color Fresnel", COLOR) = (1,1,1,1)
-        _Fresnel ("Fresnel", FLOAT) = 0
+        _FresnelVal ("Fresnel Exp", FLOAT) = 1
+        [Space]
         _MainTex ("Texture", 2D) = "white" {}
         [Toggle(ANIM_ON)]_Anim_ON ("Animation", FLOAT) = 0
         _Anim ("Animation dir", VECTOR) = (0,0,0,0)
@@ -40,6 +43,7 @@ Shader "Game/Uber Transparent"
             #pragma multi_compile_fog
             #pragma multi_compile __ CUTOUT_ON
             #pragma multi_compile __ ANIM_ON
+            #pragma multi_compile __ ENABLE_FRESNEL
 
             #include "UnityCG.cginc"
 
@@ -59,7 +63,9 @@ Shader "Game/Uber Transparent"
                 float4 vertex : SV_POSITION;
                 float4 color : COLOR;
                 half3 normal : NORMAL;
+                #ifdef ENABLE_FRESNEL
                 half3 viewVec : TEXCOORD2;
+                #endif
                 UNITY_VERTEX_OUTPUT_STEREO //Insert
             };
 
@@ -68,7 +74,7 @@ Shader "Game/Uber Transparent"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             half _VCol;
-            half _Fresnel;
+            half _FresnelVal;
             half _CutThr;
             half _AlphaScale;
 
@@ -93,8 +99,10 @@ Shader "Game/Uber Transparent"
                 #endif
 
                 o.color = lerp(1,v.color,_VCol);
+                #ifdef ENABLE_FRESNEL
                 o.normal = UnityObjectToWorldNormal(v.normal);
                 o.viewVec = (_WorldSpaceCameraPos - mul(unity_ObjectToWorld,v.vertex).xyz);
+                #endif
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
@@ -106,34 +114,18 @@ Shader "Game/Uber Transparent"
                 clip(tex.a - _CutThr);
                 #endif
                 tex.a *= _AlphaScale;
+                
+                #ifdef ENABLE_FRESNEL
                 half facing = abs(dot(normalize(i.normal),normalize(i.viewVec)));
                 fixed4 col = 
                     tex * 
                     lerp(
-                        _ColorFresnel,
-                        _Color,
-                        saturate(pow(abs(facing),_Fresnel))
+                        _Color, _ColorFresnel, 
+                        saturate(pow(1.0-facing, _FresnelVal))
                     ) * i.color;
-                UNITY_APPLY_FOG(i.fogCoord, col);
-                return col;
-            }
-            ENDCG
-        }
-    }
-}
-tex = tex2D(_MainTex,i.uv);
-                #ifdef CUTOUT_ON
-                clip(tex.a - _CutThr);
+                #else
+                fixed4 col = tex * _Color * i.color;
                 #endif
-                tex.a *= _AlphaScale;
-                half facing = abs(dot(normalize(i.normal),normalize(i.viewVec)));
-                fixed4 col = 
-                    tex * 
-                    lerp(
-                        _ColorFresnel,
-                        _Color,
-                        saturate(pow(abs(facing),_Fresnel))
-                    ) * i.color;
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
